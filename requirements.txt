@@ -1,0 +1,7 @@
+numpy
+numba
+scikit-image
+scipy
+pandas
+matplotlib
+pytest
