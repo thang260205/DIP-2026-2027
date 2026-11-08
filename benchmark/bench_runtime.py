@@ -4,10 +4,11 @@ Quy trình thực hiện:
 - Kiểm thử trên cùng một ảnh gốc ở hai kích thước: 128x128 và 256x256.
 - Đo thời gian cho 4 backend: naive, vectorized, jit, skimage.
 - Khởi động (warmup) backend jit trước khi đo để loại trừ chi phí biên dịch JIT.
-- Lặp lại nhiều lần để tính giá trị trung bình (time_mean) và độ lệch chuẩn (time_std).
+- Lặp lại nhiều lần (3 - 10 lần) để tính giá trị trung bình (time_mean) và độ lệch chuẩn (time_std).
 - Ghi kết quả vào file results/runtime.csv.
 """
 import os
+import sys
 import time
 import numpy as np
 import pandas as pd
@@ -19,6 +20,12 @@ from nlm.vectorized import nlm_vectorized
 from nlm.jit import nlm_jit
 from nlm.utils import to_float
 
+if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
 
 def run_benchmark():
     """Thực thi toàn bộ quy trình đo kiểm hiệu năng và lưu kết quả vào CSV."""
@@ -27,24 +34,23 @@ def run_benchmark():
     h = 0.1
     sizes = [128, 256]
 
-    # Cấu hình số lần lặp đo cho từng backend theo kích thước
-    # Backend naive tốn nhiều thời gian nên chạy ít lần hơn
+    # Lặp 3 lần cho Naive và 5 - 10 lần cho các backend khác
     repeats_config = {
-        128: {"naive": 2, "vectorized": 3, "jit": 5, "skimage": 3},
-        256: {"naive": 1, "vectorized": 3, "jit": 5, "skimage": 3},
+        128: {"naive": 3, "vectorized": 5, "jit": 10, "skimage": 5},
+        256: {"naive": 3, "vectorized": 5, "jit": 10, "skimage": 5},
     }
 
     full_cam = to_float(camera())
     records = []
 
     # Khởi động (warmup) Numba JIT để biên dịch trước khi bắt đầu đo
-    print("[Warmup] Đang khởi động và biên dịch Numba JIT...")
+    print("[Warmup] Dang khoi dong va bien dich Numba JIT...")
     dummy = full_cam[:32, :32]
     nlm_jit(dummy, f=f, t=t, h=h)
-    print("[Warmup] Hoàn tất biên dịch JIT.\n")
+    print("[Warmup] Hoan tat bien dich JIT.\n")
 
     for size in sizes:
-        print(f"=== Bắt đầu đo hiệu năng trên kích thước ảnh {size}x{size} ===")
+        print(f"=== Bat dau do hieu nang tren anh {size}x{size} ===")
         img = full_cam[:size, :size]
 
         backends = [
@@ -65,7 +71,7 @@ def run_benchmark():
 
         for name, fn in backends:
             n_reps = repeats_config[size][name]
-            print(f"  -> Đang đo backend '{name}' ({n_reps} lần lặp)...", end="", flush=True)
+            print(f"  -> Do backend '{name}' ({n_reps} lan lap)...", end="", flush=True)
 
             durations = []
             for rep in range(n_reps):
@@ -93,7 +99,7 @@ def run_benchmark():
 
     df = pd.DataFrame(records)
     df.to_csv(csv_path, index=False)
-    print(f"\n[Kết quả] Đã lưu bảng hiệu năng vào: {csv_path}")
+    print(f"\n[Ket qua] Da luu bang hieu nang vao: {csv_path}")
     print(df.to_string(index=False))
 
 
